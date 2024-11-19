@@ -39,7 +39,7 @@ class MainPage(ttk.Frame):
 
         # Load dataset
         self.dataset = []
-        if not self.load_dataset('iphone.csv'):
+        if not self.load_dataset('dataset.csv'):
             print("Failed to load dataset.")
 
         # Title Label
