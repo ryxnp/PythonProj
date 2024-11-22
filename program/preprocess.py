@@ -2,6 +2,9 @@ import pandas as pd
 import re
 from textblob import TextBlob
 import nltk
+import tkinter as tk
+from tkinter import messagebox, filedialog
+from tkinter import ttk
 
 # Download necessary NLTK resources
 nltk.download('stopwords')
@@ -10,17 +13,22 @@ nltk.download('wordnet')
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 
+# Initialize NLTK resources
+lemmatizer = WordNetLemmatizer()
+stop_words = set(stopwords.words('english'))
+
 def load_dataset():
+    """Load the dataset from a CSV file."""
     try:
-        # Load CSV file into a DataFrame
         df = pd.read_csv('iphone_reviews.csv')
+        print("Loaded dataset columns:", df.columns.tolist())  # Debugging statement
         return df  # Return the DataFrame itself for processing
     except Exception as e:
-        print(f"Error loading dataset: {e}")
+        messagebox.showerror("Error", f"Error loading dataset: {e}")
         return pd.DataFrame()  # Return an empty DataFrame on error
 
-# Initializing the sentiment analyzer function
 def analyze_sentiment(review):
+    """Analyze sentiment of a review."""
     if isinstance(review, str):
         analysis = TextBlob(review)
         if analysis.sentiment.polarity > 0:
@@ -32,39 +40,93 @@ def analyze_sentiment(review):
     else:
         return 'Unknown'
 
-# Load the dataset
-df = load_dataset()
+def preprocess_text(text):
+    """Preprocess review text by cleaning and lemmatizing."""
+    if isinstance(text, str):
+        text = re.sub(r'[^a-zA-Z\s]', '', text)  # Remove special characters and numbers
+        text = text.lower()  # Convert to lowercase
+        tokens = text.split()  # Tokenization
+        tokens = [lemmatizer.lemmatize(word) for word in tokens if word not in stop_words]  # Lemmatization
+        return ' '.join(tokens)  # Join tokens back into a string
 
-# Ensure the DataFrame is not empty before proceeding
-if not df.empty:
-    # Analyzing sentiments and adding a new column to the DataFrame
-    df['Sentiment'] = df['reviewDescription'].apply(analyze_sentiment)
+def process_reviews():
+    """Process reviews by analyzing sentiment and cleaning text."""
+    global df  # Declare df as global to access it in save_to_csv function
+    df = load_dataset()
 
-    positive_reviews = df[df['Sentiment'] == 'Positive']
-    negative_reviews = df[df['Sentiment'] == 'Negative']
+    if not df.empty:
+        # Check if 'reviewDescription' exists in DataFrame
+        if 'reviewDescription' not in df.columns:
+            messagebox.showerror("Error", "Column 'reviewDescription' not found in dataset.")
+            return
+        
+        # Adding new columns for sentiment and cleaned reviews directly to the original DataFrame
+        df['Sentiment'] = df['reviewDescription'].apply(analyze_sentiment)
+        df['cleaned_reviews'] = df['reviewDescription'].apply(preprocess_text)
 
-    # Prints how many reviews per category
-    print(f"Number of Positive Reviews: {len(positive_reviews)}")
-    print(f"Number of Negative Reviews: {len(negative_reviews)}")
+        # Debugging statement to check new columns creation
+        print("Columns after processing:", df.columns.tolist())
+        
+        # Clear existing data in the treeview
+        for row in tree.get_children():
+            tree.delete(row)
 
-    # Initializing lemmatizer
-    lemmatizer = WordNetLemmatizer()
-    stop_words = set(stopwords.words('english'))
+        # Insert new data into the treeview from updated DataFrame
+        for index, row in df.iterrows():
+            tree.insert("", "end", values=(row['reviewDescription'], row['cleaned_reviews'], row['Sentiment']))
 
-    def preprocess_text(text):
-        if isinstance(text, str):
-            # Removing special characters and numbers
-            text = re.sub(r'[^a-zA-Z\s]', '', text)
-            # Converting to lowercase
-            text = text.lower()
-            # Tokenization and lemmatization
-            tokens = text.split()
-            tokens = [lemmatizer.lemmatize(word) for word in tokens if word not in stop_words]
-            return ' '.join(tokens)
+        # Count positive and negative reviews
+        positive_count = len(df[df['Sentiment'] == 'Positive'])
+        negative_count = len(df[df['Sentiment'] == 'Negative'])
 
-    # Apply preprocessing to the review descriptions
-    df['cleaned_reviews'] = df['reviewDescription'].apply(preprocess_text)
+        # Insert summary row
+        tree.insert("", "end", values=("Total Positive Reviews", positive_count, ""))
+        tree.insert("", "end", values=("Total Negative Reviews", negative_count, ""))
 
-    print(df[['reviewDescription', 'cleaned_reviews']].head())  # Only displays the first 5 cleaned reviews
-else:
-    print("No data available to process.")
+    else:
+        messagebox.showwarning("Warning", "No data available to process.")
+
+def save_to_csv():
+    """Save the updated DataFrame to a CSV file."""
+    global df  # Use the updated global DataFrame with new columns
+    
+    if not df.empty:
+        try:
+            # Ensure that the new columns exist before saving
+            required_columns = ['reviewDescription', 'cleaned_reviews', 'Sentiment']
+            for col in required_columns:
+                if col not in df.columns:
+                    messagebox.showerror("Error", f"Column '{col}' not found in DataFrame.")
+                    return
+            
+            # Save the updated DataFrame containing all relevant columns including new ones
+            file_path = filedialog.asksaveasfilename(defaultextension=".csv",
+                                                       filetypes=[("CSV Files", "*.csv")])
+            if file_path:
+                df.to_csv(file_path, index=False)
+                messagebox.showinfo("Success", "Data saved successfully.")
+                print("Saved DataFrame columns:", df.columns.tolist())  # Debugging statement
+        except Exception as e:
+            messagebox.showerror("Error", f"Error saving file: {e}")
+
+# Create the main window using Tkinter
+window = tk.Tk()
+window.title("iPhone Reviews Sentiment Analysis")
+window.geometry("800x600")
+
+# Create buttons for processing and saving reviews
+process_button = tk.Button(window, text="Load and Process Reviews", command=process_reviews)
+process_button.pack(pady=10)
+
+save_button = tk.Button(window, text="Save to CSV", command=save_to_csv)
+save_button.pack(pady=5)
+
+# Create a Treeview to display reviews
+tree = ttk.Treeview(window, columns=("Original Review", "Cleaned Review", "Sentiment"), show='headings')
+tree.heading("Original Review", text="Original Review")
+tree.heading("Cleaned Review", text="Cleaned Review")
+tree.heading("Sentiment", text="Sentiment")
+tree.pack(expand=True, fill='both', padx=10, pady=10)
+
+# Start the Tkinter event loop
+window.mainloop()
