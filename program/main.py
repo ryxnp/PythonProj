@@ -1,29 +1,10 @@
-from tkinter import *
-import tkinter as tk
-from tkinter import ttk, scrolledtext
 import pandas as pd
-from matplotlib.figure import Figure
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-import seaborn as sns  # For heatmap and boxplot
-import numpy as np  # For generating random data
+import tkinter as tk
+from tkinter import ttk
+from tkinter import *
+from tkinter import messagebox
 
-# Create root window
-root = Tk()
-root.title("Basic GUI Layout")
-root.maxsize(900, 600)
-root.config(bg="grey")
-
-# Create left and right frames
-left_frame = Frame(root, width=200, height=400, bg='white')
-left_frame.grid(row=0, column=0, padx=10, pady=5)
-
-right_frame = Frame(root, width=650, height=400, bg='white')
-right_frame.grid(row=0, column=1, padx=10, pady=5)
-
-# Create frames and labels in left_frame
-Label(left_frame, text="Menu Controls", font=("Arial", 14)).grid(row=0, column=0, padx=5, pady=5)
-
-# Load dataset and populate dropdown menu with column names
+# Function to load the dataset
 def load_dataset():
     try:
         # Load CSV file into a DataFrame
@@ -33,96 +14,135 @@ def load_dataset():
         print(f"Error loading dataset: {e}")
         return pd.DataFrame()  # Return an empty DataFrame on error
 
-# Function to update the second dropdown based on selection in the first dropdown
-def update_dropdown2(*args):
-    selected1 = selected_option1.get()
-    options2 = [col for col in options.columns if col != selected1]  # Exclude selected option from options2
-    selected_option2.set(options2[0] if options2 else '')  # Set default value if available
-    dropdown2['values'] = options2  # Update values of second dropdown
+# Load the dataset
+df = load_dataset()
 
-# Dropdown menu for selecting use cases
-Label(left_frame, text="Select Use Case:").grid(row=1, column=0, padx=5)
-use_case_options = ["Scatter Plot", "Pie Chart", "Box Plot", "HeatMap"]
-selected_use_case = StringVar()
-selected_use_case.set(use_case_options[0])  # Set default value
-use_case_dropdown = ttk.Combobox(left_frame, textvariable=selected_use_case, values=use_case_options)
-use_case_dropdown.grid(row=2, column=0, padx=5)
-
-# Load dataset and create dropdown menus for selecting columns from the dataset (X and Y values)
-options = load_dataset()  # Load options from CSV
-Label(left_frame, text="Select X Column:").grid(row=3, column=0, padx=5)
-selected_option1 = StringVar()
-if not options.empty:
-    selected_option1.set(options.columns[0])  # Set default value if options are available
-dropdown1 = ttk.Combobox(left_frame, textvariable=selected_option1, values=list(options.columns))
-dropdown1.grid(row=4, column=0, padx=5)
-selected_option1.trace('w', update_dropdown2)  # Trace changes in first dropdown
-
-# Second dropdown menu for selecting another column (Y values)
-Label(left_frame, text="Select Y Column:").grid(row=5, column=0, padx=5)
-selected_option2 = StringVar()
-options2 = [col for col in options.columns if col != selected_option1.get()]  # Initial options excluding first selection
-selected_option2.set(options2[0] if options2 else '')  # Set default value if available
-dropdown2 = ttk.Combobox(left_frame, textvariable=selected_option2)
-dropdown2.grid(row=6, column=0, padx=5)
-
-# Function to validate input and generate graph/table based on it
-def generate_graph():
-    # Clear existing figure if any
-    for widget in right_frame.winfo_children():
-        widget.destroy()
-
-    # Get selected options from dropdowns
-    x_column = selected_option1.get()
-    y_column = selected_option2.get()
-    use_case = selected_use_case.get()
-
-    # Extract X and Y values from the DataFrame based on user selection
-    x_values = options[x_column].dropna().values  # Drop NaN values for X
-    y_values = options[y_column].dropna().values  # Drop NaN values for Y
-
-    fig = Figure(figsize=(5.5, 4))
-    ax = fig.add_subplot(111)
-
-    if use_case == "Scatter Plot":
-        ax.scatter(x_values[:50], y_values[:50])  # Scatter plot with limited points
+# Function to filter the DataFrame based on selected dropdown values
+def filter_data():
+    filtered_df = df.copy()
     
-    elif use_case == "Pie Chart":
-        sizes = [np.count_nonzero(options[y_column] == val) for val in np.unique(options[y_column])]
-        labels = np.unique(options[y_column])
-        ax.pie(sizes, labels=labels, autopct='%1.1f%%')
+    # Get selected values from dropdowns
+    color_selected = color_var.get()
+    model_selected = model_var.get()
+    sentiment_selected = sentiment_var.get()
     
-    elif use_case == "Box Plot":
-        data_to_plot = [options[x_column].dropna(), options[y_column].dropna()]  # Ensure no NaN values are plotted
-        ax.boxplot(data_to_plot)
+    # Apply filters based on selected values
+    if color_selected == "Select All":
+        color_selected = None  # Reset to None for filtering all colors
+    if model_selected == "Select All":
+        model_selected = None  # Reset to None for filtering all models
+    if sentiment_selected == "Select All":
+        sentiment_selected = None  # Reset to None for filtering all sentiments
+
+    if color_selected:
+        filtered_df = filtered_df[filtered_df['Color'] == color_selected]
+    if model_selected:
+        filtered_df = filtered_df[filtered_df['model'] == model_selected]
+    if sentiment_selected:
+        filtered_df = filtered_df[filtered_df['Sentiment'] == sentiment_selected]
+
+    # Clear the treeview and insert filtered data
+    for row in tree.get_children():
+        tree.delete(row)
     
-    elif use_case == "HeatMap":
-        heatmap_data = pd.DataFrame(np.random.rand(10, len(options.columns)), columns=list(options.columns))
-        sns.heatmap(heatmap_data.corr(), ax=ax) 
+    for index, row in filtered_df.iterrows():
+        tree.insert("", "end", values=row.tolist())
 
-    ax.set_title(f"Graph using {x_column} (X) and {y_column} (Y)")
+# Function to handle item selection in the Treeview
+def on_tree_select(event):
+    selected_item = tree.selection()  # Get selected item
+    if selected_item:  # Check if there is a selection
+        item_values = tree.item(selected_item)['values']  # Get values of the selected item
+        show_custom_alert(item_values)  # Show custom alert box with item details
+
+# Function to show custom alert box with formatted text
+def show_custom_alert(item_values):
+    alert_window = tk.Toplevel(root)
+    alert_window.title("Item Details")
     
-    # Create a canvas to display the figure
-    canvas = FigureCanvasTkAgg(fig, master=right_frame)
-    canvas.draw()
-    canvas.get_tk_widget().pack(fill=BOTH, expand=True)
+    # Create a Text widget for formatted output
+    text_widget = tk.Text(alert_window, width=50, height=10)
+    text_widget.pack(padx=10, pady=10)
 
-# Function to display dataset in a text widget
-def process_data():
-    for widget in right_frame.winfo_children():
-        widget.destroy()  # Clear existing widgets
+    # Format the output (example: displaying each item in a new line)
+    formatted_text = "\n".join([f"{col}: {val}" for col, val in zip(df.columns, item_values)])
+    
+    text_widget.insert(tk.END, formatted_text)
+    
+    # Create a Close button to close the alert window
+    close_button = tk.Button(alert_window, text="Close", command=alert_window.destroy)
+    close_button.pack(pady=(0, 10))
 
-    df_text_area = scrolledtext.ScrolledText(right_frame, wrap=tk.WORD)
-    df_text_area.pack(fill=BOTH, expand=True)
+# Create the main window
+root = tk.Tk()
+root.title("Basic GUI Layout")
+root.maxsize(1000, 1000)
+root.config(bg="grey")
 
-    df_text_area.insert(tk.END, str(options))  # Display the DataFrame as text
+# Create top frame for controls
+top_frame = Frame(root, bg='white')
+top_frame.grid(row=0, column=0, padx=10, pady=5, sticky='ew')
 
-# Button to trigger graph generation
-generate_button = Button(left_frame, text="Generate Graph", command=generate_graph)
-generate_button.grid(row=7,column=0,padx=5,pady=1)
+# Create bottom frame for Treeview and scrollbar
+bottom_frame = Frame(root, bg='white')
+bottom_frame.grid(row=1, column=0, padx=10, pady=5, sticky='ew')
 
-# Button to process data and display the DataFrame
-process_button = Button(left_frame,text="Display Dataset",command=process_data)
-process_button.grid(row=8,column=0,padx=5,pady=3)
+# Create StringVars for dropdown selections for the single row
+color_var = tk.StringVar()
+model_var = tk.StringVar()
+sentiment_var = tk.StringVar()
 
+# Create dropdown menu for Color filtering (single row)
+Label(top_frame, text="Select Color:").grid(row=0, column=0, padx=5)
+color_dropdown = ttk.Combobox(top_frame, textvariable=color_var)
+color_dropdown['values'] = ['Select All'] + df['Color'].unique().tolist()  # Add Select All option
+color_dropdown.bind('<<ComboboxSelected>>', lambda event: filter_data())
+color_dropdown.grid(row=0, column=1, padx=5)
+
+# Create dropdown menu for Model filtering (single row)
+Label(top_frame, text="Select Model:").grid(row=0, column=2, padx=5)
+model_dropdown = ttk.Combobox(top_frame, textvariable=model_var)
+model_dropdown['values'] = ['Select All'] + df['model'].unique().tolist()  # Add Select All option
+model_dropdown.bind('<<ComboboxSelected>>', lambda event: filter_data())
+model_dropdown.grid(row=0, column=3, padx=5)
+
+# Create dropdown menu for Sentiment filtering (single row)
+Label(top_frame, text="Select Sentiment:").grid(row=0, column=4, padx=5)
+sentiment_dropdown = ttk.Combobox(top_frame, textvariable=sentiment_var)
+sentiment_dropdown['values'] = ['Select All'] + df['Sentiment'].unique().tolist()  # Add Select All option
+sentiment_dropdown.bind('<<ComboboxSelected>>', lambda event: filter_data())
+sentiment_dropdown.grid(row=0, column=5, padx=5)
+
+# Create a single button named "Analysis"
+Button(top_frame, text="Analysis", command=lambda: print("Analysis button clicked")).grid(row=0, column=6, padx=5)
+
+# Centering: Configure grid weights for centering effect in the single row
+for i in range(7):
+    top_frame.grid_columnconfigure(i, weight=1)  # Allow all columns to expand equally
+
+# Create a Treeview to display the DataFrame in bottom_frame
+tree = ttk.Treeview(bottom_frame, columns=list(df.columns), show='headings')
+for col in df.columns:
+    tree.heading(col, text=col)
+    tree.column(col, width=70)  # Set a default width for each column
+
+# Add a scrollbar for horizontal scrolling
+scrollbar = Scrollbar(bottom_frame, orient="horizontal", command=tree.xview)
+tree.configure(xscrollcommand=scrollbar.set)
+
+# Pack the Treeview and scrollbar into bottom_frame
+tree.pack(side='top', fill='both', expand=True)
+scrollbar.pack(side='bottom', fill='x')
+
+# Insert initial data into the Treeview
+filter_data()  # Show all data initially
+
+# Bind selection event to Treeview
+tree.bind("<<TreeviewSelect>>", on_tree_select)
+
+# Configure grid weights to make frames expand properly
+root.grid_rowconfigure(0, weight=1)  # Allow top frame to expand vertically
+root.grid_rowconfigure(1, weight=3)  # Allow bottom frame to take more space
+
+# Start the Tkinter event loop
 root.mainloop()
