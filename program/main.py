@@ -27,7 +27,7 @@ Label(left_frame, text="Menu Controls", font=("Arial", 14)).grid(row=0, column=0
 def load_dataset():
     try:
         # Load CSV file into a DataFrame
-        df = pd.read_csv('dataset.csv')
+        df = pd.read_csv('iphone_reviews.csv')
         return df  # Return the DataFrame itself for processing
     except Exception as e:
         print(f"Error loading dataset: {e}")
