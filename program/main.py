@@ -128,6 +128,38 @@ def perform_analysis():
         plt.title('Pair Plot of DataFrame')
         plt.show()
 
+# Function to update X and Y dropdown options based on selected analysis type.
+def update_xy_options(event):
+   """Update X and Y dropdown options based on selected analysis type."""
+   selected_analysis_type = analysis_var.get()
+   x_options = []
+   y_options = []
+
+   if selected_analysis_type in analysis_options:
+       x_options.append("Select X Value")  # Placeholder option 
+       y_options.append("Select Y Value")  # Placeholder option 
+
+       valid_columns = analysis_options[selected_analysis_type]
+
+       if len(valid_columns) > 0:
+           x_options += valid_columns 
+           x_dropdown['values'] = x_options  
+           x_dropdown.current(0)  
+
+           if len(valid_columns) > 1:
+               y_options += valid_columns 
+               y_options.remove(valid_columns[0])  
+           y_dropdown['values'] = y_options  
+           y_dropdown.current(0)  
+
+       else:
+           x_dropdown['values']=[]
+           y_dropdown['values']=[]
+
+   else:
+       x_dropdown['values']=[]
+       y_dropdown['values']=[]
+
 # Create the main window
 root = tk.Tk()
 root.title("Basic GUI Layout")
@@ -206,24 +238,68 @@ analysis_frame = Frame(root)
 Label(analysis_frame,text="Select Analysis Type:").grid(row=0,column=0,padx=(10))
 analysis_var = tk.StringVar()
 analysis_dropdown = ttk.Combobox(analysis_frame,textvariable=analysis_var)
-analysis_dropdown['values'] = ["Scatter Plot", "Box Plot", "Pie Chart", "Heatmap", "Violin Plot", "Pair Plot"]  # Added more analysis types
+
+# Define available analyses and their valid X/Y options.
+analysis_options = {
+   "Scatter Plot": ("ratingScore", "Sentiment", "date"),
+   "Box Plot": ("Color","Storage", "Sentiment", "ratingScore"),
+   "Pie Chart": ("Sentiment","ratingScore"),
+   "Heatmap": ("Storage",), 
+   "Violin Plot": ("Color", "Storage","ratingScore"),
+   "Pair Plot": ("productAsin",	"date",	"isVerified",	
+                 "ratingScore",	"reviewTitle",	"reviewDescription",	
+                 "model",	"Color",	"Storage",	"Sentiment",	
+                 "cleaned_reviews",)
+}
+
+analysis_dropdown['values'] = list(analysis_options.keys())  # Add more analysis types as needed
+analysis_dropdown.bind('<<ComboboxSelected>>', update_xy_options)  # Bind selection event
 analysis_dropdown.grid(row=0,column=1,padx=(10))
 
 Label(analysis_frame,text="Select X Value:").grid(row=0,column=2,padx=(10))
 x_var = tk.StringVar()
-x_dropdown = ttk.Combobox(analysis_frame,textvariable=x_var)
-x_dropdown['values'] = df.columns.tolist()  # Use DataFrame columns as options
+x_dropdown = ttk.Combobox(analysis_frame,textvariable=x_var) 
 x_dropdown.grid(row=0,column=3,padx=(10))
 
 Label(analysis_frame,text="Select Y Value:").grid(row=0,column=4,padx=(10))
 y_var = tk.StringVar()
-y_dropdown = ttk.Combobox(analysis_frame,textvariable=y_var)
-y_dropdown['values'] = df.columns.tolist()  # Use DataFrame columns as options
+y_dropdown = ttk.Combobox(analysis_frame,textvariable=y_var) 
 y_dropdown.grid(row=0,column=5,padx=(10))
 
 Button(analysis_frame,text="Perform Analysis",command=lambda: perform_analysis()).grid(row=0,column=6,padx=(10))
 
 Button(analysis_frame,text="Back",command=lambda: show_main_screen()).grid(row=1,column=6,columnspan=(2),pady=(10), padx=(10))
+
+def update_xy_options(event):
+   """Update X and Y dropdown options based on selected analysis type."""
+   selected_analysis_type = analysis_var.get()
+   x_options = []
+   y_options = []
+
+   if selected_analysis_type in analysis_options:
+       x_options.append("Select X Value")  # Placeholder option 
+       y_options.append("Select Y Value")  # Placeholder option 
+
+       valid_columns = analysis_options[selected_analysis_type]
+
+       if len(valid_columns) > 0:
+           x_options += valid_columns 
+           x_dropdown['values'] = x_options  
+           x_dropdown.current(0)  
+
+           if len(valid_columns) > 1:
+               y_options += valid_columns 
+               y_options.remove(valid_columns[0])  
+           y_dropdown['values'] = y_options  
+           y_dropdown.current(0)  
+
+       else:
+           x_dropdown['values']=[]
+           y_dropdown['values']=[]
+
+   else:
+       x_dropdown['values']=[]
+       y_dropdown['values']=[]
 
 # Start the Tkinter event loop
 root.mainloop()
