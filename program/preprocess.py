@@ -87,7 +87,7 @@ def process_reviews():
         messagebox.showwarning("Warning", "No data available to process.")
 
 def save_to_csv():
-    """Save the updated DataFrame to a CSV file."""
+    """Save the updated DataFrame to a CSV file with only Positive and Negative sentiments."""
     global df  # Use the updated global DataFrame with new columns
     
     if not df.empty:
@@ -99,26 +99,34 @@ def save_to_csv():
                     messagebox.showerror("Error", f"Column '{col}' not found in DataFrame.")
                     return
             
-            # Save the updated DataFrame containing all relevant columns including new ones
+            # Filter the DataFrame to keep only Positive and Negative sentiments
+            filtered_df = df[df['Sentiment'].isin(['Positive', 'Negative'])]
+
+            # Check if the filtered DataFrame is empty
+            if filtered_df.empty:
+                messagebox.showwarning("Warning", "No Positive or Negative reviews to save.")
+                return
+            
+            # Save the filtered DataFrame containing only relevant rows
             file_path = filedialog.asksaveasfilename(defaultextension=".csv",
                                                        filetypes=[("CSV Files", "*.csv")])
             if file_path:
-                df.to_csv(file_path, index=False)
+                filtered_df.to_csv(file_path, index=False)
                 messagebox.showinfo("Success", "Data saved successfully.")
-                print("Saved DataFrame columns:", df.columns.tolist())  # Debugging statement
+                print("Saved DataFrame columns:", filtered_df.columns.tolist())  # Debugging statement
         except Exception as e:
             messagebox.showerror("Error", f"Error saving file: {e}")
 
 # Create the main window using Tkinter
 window = tk.Tk()
-window.title("iPhone Reviews Sentiment Analysis")
+window.title("iPhone Reviews Dataset Pre-Processing")
 window.geometry("800x600")
 
 # Create buttons for processing and saving reviews
-process_button = tk.Button(window, text="Load and Process Reviews", command=process_reviews)
+process_button = tk.Button(window, text="Process Dataset", command=process_reviews)
 process_button.pack(pady=10)
 
-save_button = tk.Button(window, text="Save to CSV", command=save_to_csv)
+save_button = tk.Button(window, text="Download CSV", command=save_to_csv)
 save_button.pack(pady=5)
 
 # Create a Treeview to display reviews
